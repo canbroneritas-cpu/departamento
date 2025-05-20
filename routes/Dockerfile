@@ -1,30 +1,36 @@
-# Dockerfile
+FROM php:8.3-fpm
 
-FROM php:8.2-fpm
-
-# Instala dependencias del sistema
+# Instala dependencias necesarias
 RUN apt-get update && apt-get install -y \
-    git curl libpng-dev libonig-dev libxml2-dev zip unzip \
+    build-essential \
+    libpng-dev \
+    libjpeg-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    git \
+    curl \
     libpq-dev \
-    && docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd
+    libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl bcmath gd
 
 # Instala Composer
-COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Establece el directorio de trabajo
+# Copia el proyecto Laravel
 WORKDIR /var/www
-
-# Copia los archivos del proyecto
 COPY . .
 
-# Instala dependencias PHP
+# Instala dependencias del proyecto
 RUN composer install --no-dev --optimize-autoloader
 
-# Establece permisos
-RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage /var/www/bootstrap/cache
+# Genera APP_KEY y enlaces
+RUN php artisan key:generate && \
+    php artisan storage:link || true
 
+# Exposición del puerto para PHP server
 EXPOSE 8000
 
-# Ejecuta servidor Laravel
+# Comando para ejecutar la aplicación
 CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
